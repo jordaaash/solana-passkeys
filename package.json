@@ -14,6 +14,11 @@
         "fmt": "prettier --write '{*,**/*}.{ts,tsx,js,jsx,json}'"
     },
     "dependencies": {
+        "@noble/ciphers": "^0.2.0",
+        "@noble/curves": "^1.1.0",
+        "@passwordless-id/webauthn": "1.2.4",
+        "@solana/web3.js": "1.78.3",
+        "@turnkey/http": "^1.0.1",
         "@types/node": "20.4.9",
         "@types/react": "18.2.20",
         "@types/react-dom": "18.2.7",
