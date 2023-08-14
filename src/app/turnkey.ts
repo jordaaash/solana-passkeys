@@ -5,28 +5,31 @@ export type Registration = { subOrganizationId: string; privateKeyId: string; pu
 
 export async function register(): Promise<Registration> {
     const challenge = getRandomBytes(32);
-    const rp = window.location.hostname;
     const username = 'Solana Passkey';
 
     const attestation = await getWebAuthnAttestation({
         publicKey: {
-            challenge,
-            rp: {
-                id: rp,
-                name: rp,
+            attestation: 'none',
+            authenticatorSelection: {
+                requireResidentKey: true,
+                residentKey: 'required',
             },
+            challenge: challenge.buffer,
+            excludeCredentials: [],
+            extensions: {
+                credProps: true,
+            },
+            pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+            rp: {
+                id: window.location.hostname,
+                name: 'Solana Passkeys',
+            },
+            timeout: 60000,
             user: {
-                id: sha256(new TextEncoder().encode(username)), // FIXME: 741d7569b69dfc664fe4d7eb5167bc7c4e9b70bd93a53ab808e6c0d6811c87de
+                id: getRandomBytes(16).buffer,
                 name: username,
                 displayName: username,
             },
-            timeout: 60000,
-            authenticatorSelection: {
-                userVerification: 'required',
-                authenticatorAttachment: undefined,
-            },
-            pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
-            attestation: 'direct',
         },
     });
 
