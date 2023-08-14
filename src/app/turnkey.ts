@@ -1,3 +1,4 @@
+import { sha256 } from '@noble/hashes/sha256';
 import { getWebAuthnAttestation, SignedRequest, TurnkeyActivityError, TurnkeyApi } from '@turnkey/http';
 import { bytesToBase64Url, bytesToHex, getRandomBytes, hexToBytes } from './bytes';
 
@@ -5,24 +6,28 @@ export type Registration = { subOrganizationId: string; privateKeyId: string; pu
 
 export async function register(): Promise<Registration> {
     const challenge = getRandomBytes(32);
+    const rp = window.location.hostname;
+    const username = 'Solana Passkey';
+
     const attestation = await getWebAuthnAttestation({
         publicKey: {
+            challenge,
             rp: {
-                id: window.location.hostname,
-                name: 'Solana Passkeys',
+                id: rp,
+                name: rp,
             },
-            challenge: challenge.buffer,
-            pubKeyCredParams: [
-                {
-                    type: 'public-key',
-                    alg: -7,
-                },
-            ],
             user: {
-                id: getRandomBytes(32).buffer,
-                name: 'Solana Passkey',
-                displayName: 'Solana Passkey',
+                id: sha256(new TextEncoder().encode(username)), // FIXME: 741d7569b69dfc664fe4d7eb5167bc7c4e9b70bd93a53ab808e6c0d6811c87de
+                name: username,
+                displayName: username,
             },
+            timeout: 60000,
+            authenticatorSelection: {
+                userVerification: 'required',
+                authenticatorAttachment: undefined,
+            },
+            pubKeyCredParams: [{ alg: -7, type: 'public-key' }],
+            attestation: 'direct',
         },
     });
 
