@@ -1,4 +1,3 @@
-import { sha256 } from '@noble/hashes/sha256';
 import { getWebAuthnAttestation, SignedRequest, TurnkeyActivityError, TurnkeyApi } from '@turnkey/http';
 import { bytesToBase64Url, bytesToHex, getRandomBytes, hexToBytes } from './bytes';
 
