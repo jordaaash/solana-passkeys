@@ -27,14 +27,14 @@ export default function Home() {
 
     const onSignMessage = useCallback(async () => {
         if (!registration || !publicKey) return;
-        const payload = getRandomBytes(32);
+        const bytes = getRandomBytes(32);
         const { signature } = await signBytes({
-            bytes: payload,
+            bytes,
             subOrganizationId: registration.subOrganizationId,
             privateKeyId: registration.privateKeyId,
         });
 
-        alert(`Message signature valid? ${ed25519.verify(signature, payload, publicKey.toBytes())}`);
+        alert(`Message signature valid? ${ed25519.verify(signature, bytes, publicKey.toBytes())}`);
     }, [registration, publicKey]);
 
     const onRequestAirdrop = useCallback(async () => {
