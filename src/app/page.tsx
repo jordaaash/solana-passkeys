@@ -1,6 +1,7 @@
 'use client';
+
 import { ed25519 } from '@noble/curves/ed25519';
-import { PublicKey } from '@solana/web3.js';
+import { clusterApiUrl, Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { browserInit, getWebAuthnAttestation, SignedRequest, TurnkeyActivityError, TurnkeyApi } from '@turnkey/http';
 import { useCallback, useEffect, useMemo } from 'react';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -11,14 +12,18 @@ export default function Home() {
 
     const [registration, setRegistration] = useLocalStorage<Registration | null>('registration', null);
     const publicKey = useMemo(() => (registration ? new PublicKey(registration.publicKey) : null), [registration]);
+    const connection = useMemo(() => new Connection(clusterApiUrl('devnet')), []);
 
     const onRegister = useCallback(async () => {
         if (registration) return;
         const newRegistration = await register();
         setRegistration(newRegistration);
+
+        console.log(`https://explorer.solana.com/address/${newRegistration.publicKey}`);
+        alert(`Registered: ${newRegistration.publicKey}`);
     }, [registration, setRegistration]);
 
-    const onSign = useCallback(async () => {
+    const onSignMessage = useCallback(async () => {
         if (!registration || !publicKey) return;
         const payload = getRandomBytes(32);
         const { signature } = await signRawPayload({
@@ -27,13 +32,81 @@ export default function Home() {
             privateKeyId: registration.privateKeyId,
         });
 
-        console.log(signature);
-        alert('Signature valid? ' + ed25519.verify(signature, payload, publicKey.toBytes()));
+        alert(`Message signature valid? ${ed25519.verify(signature, payload, publicKey.toBytes())}`);
     }, [registration, publicKey]);
+
+    const onRequestAirdrop = useCallback(async () => {
+        if (!publicKey) return;
+        const txid = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
+
+        console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+        alert(`Airdrop requested! ${txid}`);
+
+        await connection.confirmTransaction(txid, 'confirmed');
+
+        alert(`Airdrop confirmed! ${txid}`);
+    }, [publicKey, connection]);
+
+    const onSignAndSendTransaction = useCallback(async () => {
+        if (!registration || !publicKey) return;
+
+        const {
+            value: { blockhash, lastValidBlockHeight },
+            context: { slot: minContextSlot },
+        } = await connection.getLatestBlockhashAndContext();
+        const transaction = new Transaction({
+            feePayer: publicKey,
+            blockhash,
+            lastValidBlockHeight,
+        }).add(
+            SystemProgram.transfer({
+                fromPubkey: publicKey,
+                toPubkey: publicKey,
+                lamports: 0,
+            })
+        );
+
+        const { signature } = await signRawPayload({
+            payload: transaction.serializeMessage(),
+            subOrganizationId: registration.subOrganizationId,
+            privateKeyId: registration.privateKeyId,
+        });
+
+        transaction.addSignature(publicKey, Buffer.from(signature));
+
+        alert(`Transaction signature valid? ${transaction.verifySignatures()}`);
+
+        const txid = await connection.sendRawTransaction(transaction.serialize(), {
+            minContextSlot,
+        });
+
+        console.log(`https://explorer.solana.com/tx/${txid}?cluster=devnet`);
+        alert(`Transaction sent! ${txid}`);
+
+        await connection.confirmTransaction(
+            {
+                signature: txid,
+                blockhash,
+                lastValidBlockHeight,
+                minContextSlot,
+            },
+            'confirmed'
+        );
+
+        alert(`Transaction confirmed! ${txid}`);
+    }, [registration, publicKey, connection]);
 
     return (
         <main className={styles.main}>
-            {!registration ? <button onClick={onRegister}>Register</button> : <button onClick={onSign}>Sign</button>}
+            {!registration ? (
+                <button onClick={onRegister}>Register</button>
+            ) : (
+                <div>
+                    <button onClick={onSignMessage}>Sign Message</button>
+                    <button onClick={onRequestAirdrop}>Request Airdrop</button>
+                    <button onClick={onSignAndSendTransaction}>Sign and Send Transaction</button>
+                </div>
+            )}
         </main>
     );
 }
