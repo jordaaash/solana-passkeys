@@ -1,0 +1,35 @@
+body {
+    background: #071952;
+}
+
+.toast[data-sonner-toast] {
+    word-break: break-word;
+    display: flex;
+}
+
+.toast[data-sonner-toast] [data-icon] {
+    margin-top: 2px;
+}
+
+.toast[data-sonner-toast] [data-content] {
+    align-self: center;
+    flex-grow: 1;
+}
+
+.toast[data-sonner-toast] [data-button] {
+    align-self: flex-start;
+    height: unset;
+    border: 0;
+    border-radius: 4px;
+    padding: 8px;
+    margin: 0;
+    background: #0B666A;
+    color: #ffffff;
+    word-break: initial;
+    transition: background-color 250ms ease-in-out;
+    cursor: pointer;
+}
+
+.toast[data-sonner-toast] [data-button]:hover {
+    background: #35A29F;
+}

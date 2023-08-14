@@ -1,7 +1,21 @@
 .main {
   display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  align-items: center;
+  align-items: flex-start;
+  justify-content: center;
   min-height: 100vh;
+}
+
+.button {
+  border: 0;
+  border-radius: 4px;
+  padding: 12px;
+  margin: 8px;
+  background: #0B666A;
+  color: #ffffff;
+  transition: background-color 250ms ease-in-out;
+  cursor: pointer;
+}
+
+.button:hover {
+  background: #35A29F;
 }
