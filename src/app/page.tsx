@@ -4,7 +4,7 @@ import { ed25519 } from '@noble/curves/ed25519';
 import { clusterApiUrl, Connection, LAMPORTS_PER_SOL, PublicKey, SystemProgram, Transaction } from '@solana/web3.js';
 import { browserInit } from '@turnkey/http';
 import bs58 from 'bs58';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { toast, Toaster } from 'sonner';
 import { getRandomBytes } from './bytes';
 import { useLocalStorage } from './hooks/useLocalStorage';
@@ -18,208 +18,228 @@ export default function Home() {
     const publicKey = useMemo(() => (registration ? new PublicKey(registration.publicKey) : null), [registration]);
     const connection = useMemo(() => new Connection(clusterApiUrl('devnet')), []);
 
+    const [loading, setLoading] = useState(true);
+    useEffect(() => setLoading(false), []);
+
     const onRegister = useCallback(async () => {
         if (registration) return;
-
-        toast('Registering ...');
-        let newRegistration: Registration;
         try {
-            newRegistration = await register();
-            setRegistration(newRegistration);
-        } catch (error) {
-            toast.error('Registration failed!', { description: String(error) });
-            return;
-        }
+            setLoading(true);
+            toast('Registering ...');
+            let newRegistration: Registration;
+            try {
+                newRegistration = await register();
+                setRegistration(newRegistration);
+            } catch (error) {
+                toast.error('Registration failed!', { description: String(error) });
+                return;
+            }
 
-        toast.success('Registered successfully!', {
-            description: `Your public key is ${newRegistration.publicKey}`,
-            action: {
-                label: 'View',
-                onClick: () =>
-                    window.open(`https://explorer.solana.com/address/${newRegistration.publicKey}?cluster=devnet`),
-            },
-        });
+            toast.success('Registered successfully!', {
+                description: `Your public key is ${newRegistration.publicKey}`,
+                action: {
+                    label: 'View',
+                    onClick: () =>
+                        window.open(`https://explorer.solana.com/address/${newRegistration.publicKey}?cluster=devnet`),
+                },
+            });
+        } finally {
+            setLoading(false);
+        }
     }, [registration, setRegistration]);
 
     const onSignMessage = useCallback(async () => {
         if (!registration || !publicKey) return;
-        const bytes = getRandomBytes(32);
-        toast('Signing ...');
-        let signature: Uint8Array;
         try {
-            ({ signature } = await signBytes({
-                bytes,
-                subOrganizationId: registration.subOrganizationId,
-                privateKeyId: registration.privateKeyId,
-            }));
-        } catch (error) {
-            toast.error('Signing failed!', { description: String(error) });
-            return;
-        }
+            setLoading(true);
+            const bytes = getRandomBytes(32);
+            toast('Signing ...');
+            let signature: Uint8Array;
+            try {
+                ({ signature } = await signBytes({
+                    bytes,
+                    subOrganizationId: registration.subOrganizationId,
+                    privateKeyId: registration.privateKeyId,
+                }));
+            } catch (error) {
+                toast.error('Signing failed!', { description: String(error) });
+                return;
+            }
 
-        if (!ed25519.verify(signature, bytes, publicKey.toBytes())) {
-            toast.error('Signature invalid!', {
+            if (!ed25519.verify(signature, bytes, publicKey.toBytes())) {
+                toast.error('Signature invalid!', {
+                    description: `Your message signature is ${bs58.encode(signature)}`,
+                });
+                return;
+            }
+
+            toast.success('Signature verified!', {
                 description: `Your message signature is ${bs58.encode(signature)}`,
             });
-            return;
+        } finally {
+            setLoading(false);
         }
-
-        toast.success('Signature verified!', {
-            description: `Your message signature is ${bs58.encode(signature)}`,
-        });
     }, [registration, publicKey]);
 
     const onRequestAirdrop = useCallback(async () => {
         if (!publicKey) return;
-
-        toast('Requesting airdrop ...');
-        let txid: string;
         try {
-            txid = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
-        } catch (error) {
-            toast.error('Airdrop failed!', { description: String(error) });
-            return;
-        }
+            setLoading(true);
+            toast('Requesting airdrop ...');
+            let txid: string;
+            try {
+                txid = await connection.requestAirdrop(publicKey, LAMPORTS_PER_SOL);
+            } catch (error) {
+                toast.error('Airdrop failed!', { description: String(error) });
+                return;
+            }
 
-        toast.success('Airdrop requested!', {
-            description: '',
-            action: {
-                label: 'View',
-                onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
-            },
-        });
-
-        toast('Confirming airdrop ...');
-        try {
-            await connection.confirmTransaction(txid, 'confirmed');
-        } catch (error) {
-            toast.error('Airdrop failed!', {
-                description: String(error),
+            toast.success('Airdrop requested!', {
+                description: '',
                 action: {
                     label: 'View',
                     onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
                 },
             });
-            return;
-        }
 
-        toast.success('Airdrop confirmed!', {
-            action: {
-                label: 'View',
-                onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
-            },
-        });
+            toast('Confirming airdrop ...');
+            try {
+                await connection.confirmTransaction(txid, 'confirmed');
+            } catch (error) {
+                toast.error('Airdrop failed!', {
+                    description: String(error),
+                    action: {
+                        label: 'View',
+                        onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
+                    },
+                });
+                return;
+            }
+
+            toast.success('Airdrop confirmed!', {
+                action: {
+                    label: 'View',
+                    onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
+                },
+            });
+        } finally {
+            setLoading(false);
+        }
     }, [publicKey, connection]);
 
     const onSignAndSendTransaction = useCallback(async () => {
         if (!registration || !publicKey) return;
-
-        toast('Preparing transaction ...');
-        const {
-            value: { blockhash, lastValidBlockHeight },
-            context: { slot: minContextSlot },
-        } = await connection.getLatestBlockhashAndContext();
-        const transaction = new Transaction({
-            feePayer: publicKey,
-            blockhash,
-            lastValidBlockHeight,
-        }).add(
-            SystemProgram.transfer({
-                fromPubkey: publicKey,
-                toPubkey: publicKey,
-                lamports: 0,
-            })
-        );
-        const bytes = transaction.serializeMessage();
-
-        toast('Signing transaction ...');
-        let signature: Uint8Array;
         try {
-            ({ signature } = await signBytes({
-                bytes,
-                subOrganizationId: registration.subOrganizationId,
-                privateKeyId: registration.privateKeyId,
-            }));
-        } catch (error) {
-            toast.error('Signing failed!', { description: String(error) });
-            return;
-        }
+            setLoading(true);
+            toast('Preparing transaction ...');
+            const {
+                value: { blockhash, lastValidBlockHeight },
+                context: { slot: minContextSlot },
+            } = await connection.getLatestBlockhashAndContext();
+            const transaction = new Transaction({
+                feePayer: publicKey,
+                blockhash,
+                lastValidBlockHeight,
+            }).add(
+                SystemProgram.transfer({
+                    fromPubkey: publicKey,
+                    toPubkey: publicKey,
+                    lamports: 0,
+                })
+            );
+            const bytes = transaction.serializeMessage();
 
-        transaction.addSignature(publicKey, Buffer.from(signature));
-        if (!transaction.verifySignatures()) {
-            toast.error('Signature invalid!', {
+            toast('Signing transaction ...');
+            let signature: Uint8Array;
+            try {
+                ({ signature } = await signBytes({
+                    bytes,
+                    subOrganizationId: registration.subOrganizationId,
+                    privateKeyId: registration.privateKeyId,
+                }));
+            } catch (error) {
+                toast.error('Signing failed!', { description: String(error) });
+                return;
+            }
+
+            transaction.addSignature(publicKey, Buffer.from(signature));
+            if (!transaction.verifySignatures()) {
+                toast.error('Signature invalid!', {
+                    description: `Your transaction signature is ${bs58.encode(signature)}`,
+                });
+                return;
+            }
+
+            toast.success('Signature verified!', {
                 description: `Your transaction signature is ${bs58.encode(signature)}`,
             });
-            return;
-        }
 
-        toast.success('Signature verified!', {
-            description: `Your transaction signature is ${bs58.encode(signature)}`,
-        });
-
-        toast('Sending transaction ...');
-        let txid: string;
-        try {
-            txid = await connection.sendRawTransaction(transaction.serialize(), {
-                minContextSlot,
-            });
-        } catch (error) {
-            toast.error('Sending failed!', { description: String(error) });
-            return;
-        }
-
-        toast.success('Transaction sent!', {
-            action: {
-                label: 'View',
-                onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
-            },
-        });
-
-        toast('Confirming transaction ...');
-        try {
-            await connection.confirmTransaction(
-                {
-                    signature: txid,
-                    blockhash,
-                    lastValidBlockHeight,
+            toast('Sending transaction ...');
+            let txid: string;
+            try {
+                txid = await connection.sendRawTransaction(transaction.serialize(), {
                     minContextSlot,
-                },
-                'confirmed'
-            );
-        } catch (error) {
-            toast.error('Transaction failed!', {
-                description: String(error),
+                });
+            } catch (error) {
+                toast.error('Sending failed!', { description: String(error) });
+                return;
+            }
+
+            toast.success('Transaction sent!', {
                 action: {
                     label: 'View',
                     onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
                 },
             });
-            return;
-        }
 
-        toast.success('Transaction confirmed!', {
-            action: {
-                label: 'View',
-                onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
-            },
-        });
+            toast('Confirming transaction ...');
+            try {
+                await connection.confirmTransaction(
+                    {
+                        signature: txid,
+                        blockhash,
+                        lastValidBlockHeight,
+                        minContextSlot,
+                    },
+                    'confirmed'
+                );
+            } catch (error) {
+                toast.error('Transaction failed!', {
+                    description: String(error),
+                    action: {
+                        label: 'View',
+                        onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
+                    },
+                });
+                return;
+            }
+
+            toast.success('Transaction confirmed!', {
+                action: {
+                    label: 'View',
+                    onClick: () => window.open(`https://explorer.solana.com/tx/${txid}?cluster=devnet`),
+                },
+            });
+        } finally {
+            setLoading(false);
+        }
     }, [registration, publicKey, connection]);
 
     return (
         <main className={styles.main}>
             {!registration ? (
-                <button className={styles.button} onClick={onRegister}>
+                <button className={styles.button} onClick={onRegister} disabled={loading}>
                     Register
                 </button>
             ) : (
                 <>
-                    <button className={styles.button} onClick={onSignMessage}>
+                    <button className={styles.button} onClick={onSignMessage} disabled={loading}>
                         Sign Message
                     </button>
-                    <button className={styles.button} onClick={onRequestAirdrop}>
+                    <button className={styles.button} onClick={onRequestAirdrop} disabled={loading}>
                         Request Airdrop
                     </button>
-                    <button className={styles.button} onClick={onSignAndSendTransaction}>
+                    <button className={styles.button} onClick={onSignAndSendTransaction} disabled={loading}>
                         Sign and Send Transaction
                     </button>
                 </>

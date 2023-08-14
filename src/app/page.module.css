@@ -16,6 +16,11 @@
   cursor: pointer;
 }
 
-.button:hover {
+.button:disabled {
+  background: #08474A;
+  cursor: default;
+}
+
+.button:not(:disabled):hover {
   background: #35A29F;
 }
