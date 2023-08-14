@@ -21,7 +21,7 @@ export default function Home() {
         const newRegistration = await register();
         setRegistration(newRegistration);
 
-        console.log(`https://explorer.solana.com/address/${newRegistration.publicKey}`);
+        console.log(`https://explorer.solana.com/address/${newRegistration.publicKey}?cluster=devnet`);
         alert(`Registered: ${newRegistration.publicKey}`);
     }, [registration, setRegistration]);
 
