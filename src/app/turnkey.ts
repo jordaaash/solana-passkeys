@@ -8,7 +8,7 @@ export async function register(): Promise<Registration> {
     const attestation = await getWebAuthnAttestation({
         publicKey: {
             rp: {
-                id: 'localhost',
+                id: 'solana-passkeys',
                 name: 'Solana Passkeys',
             },
             challenge: challenge.buffer,
