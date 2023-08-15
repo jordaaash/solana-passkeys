@@ -1,3 +1,4 @@
+import { PublicKey, Transaction } from '@solana/web3.js';
 import { getWebAuthnAttestation, SignedRequest, TurnkeyActivityError, TurnkeyApi } from '@turnkey/http';
 import { bytesToBase64Url, bytesToHex, getRandomBytes, hexToBytes } from './bytes';
 
@@ -49,6 +50,26 @@ export async function register(): Promise<Registration> {
 }
 
 export type Signature = { signature: Uint8Array };
+
+export async function signTransaction({
+    transaction,
+    publicKey,
+    subOrganizationId,
+    privateKeyId,
+}: {
+    transaction: Transaction;
+    publicKey: PublicKey;
+    subOrganizationId: string;
+    privateKeyId: string;
+}): Promise<{ transaction: Transaction; signature: Uint8Array }> {
+    const { signature } = await signBytes({
+        bytes: transaction.serializeMessage(),
+        subOrganizationId,
+        privateKeyId,
+    });
+    transaction.addSignature(publicKey, Buffer.from(signature));
+    return { transaction, signature };
+}
 
 export async function signBytes({
     bytes,

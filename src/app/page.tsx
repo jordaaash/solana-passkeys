@@ -9,7 +9,7 @@ import { toast, Toaster } from 'sonner';
 import { getRandomBytes } from './bytes';
 import { useLocalStorage } from './hooks/useLocalStorage';
 import styles from './page.module.css';
-import { register, Registration, signBytes } from './turnkey';
+import { register, Registration, signBytes, signTransaction } from './turnkey';
 
 export default function Home() {
     useEffect(() => browserInit({ baseUrl: process.env.NEXT_PUBLIC_TURNKEY_API_BASE_URL! }), []);
@@ -136,7 +136,7 @@ export default function Home() {
                 value: { blockhash, lastValidBlockHeight },
                 context: { slot: minContextSlot },
             } = await connection.getLatestBlockhashAndContext();
-            const transaction = new Transaction({
+            let transaction = new Transaction({
                 feePayer: publicKey,
                 blockhash,
                 lastValidBlockHeight,
@@ -147,13 +147,13 @@ export default function Home() {
                     lamports: 0,
                 })
             );
-            const bytes = transaction.serializeMessage();
 
             toast('Signing transaction ...');
             let signature: Uint8Array;
             try {
-                ({ signature } = await signBytes({
-                    bytes,
+                ({ transaction, signature } = await signTransaction({
+                    transaction,
+                    publicKey,
                     subOrganizationId: registration.subOrganizationId,
                     privateKeyId: registration.privateKeyId,
                 }));
@@ -162,7 +162,6 @@ export default function Home() {
                 return;
             }
 
-            transaction.addSignature(publicKey, Buffer.from(signature));
             if (!transaction.verifySignatures()) {
                 toast.error('Signature invalid!', {
                     description: `Your transaction signature is ${bs58.encode(signature)}`,
