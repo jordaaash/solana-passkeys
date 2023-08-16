@@ -1,7 +1,7 @@
 import { type Dispatch, type SetStateAction, useEffect, useRef, useState } from 'react';
 
 export function useLocalStorage<T>(key: string, defaultState: T): [T, Dispatch<SetStateAction<T>>] {
-    const state = useState<T>(() => {
+    const [state, setState] = useState<T>(() => {
         try {
             const value = localStorage.getItem(key);
             if (value) return JSON.parse(value) as T;
@@ -13,8 +13,6 @@ export function useLocalStorage<T>(key: string, defaultState: T): [T, Dispatch<S
 
         return defaultState;
     });
-    const value = state[0];
-
     const isFirstRenderRef = useRef(true);
     useEffect(() => {
         if (isFirstRenderRef.current) {
@@ -22,17 +20,17 @@ export function useLocalStorage<T>(key: string, defaultState: T): [T, Dispatch<S
             return;
         }
         try {
-            if (value === null) {
+            if (state === null) {
                 localStorage.removeItem(key);
             } else {
-                localStorage.setItem(key, JSON.stringify(value));
+                localStorage.setItem(key, JSON.stringify(state));
             }
         } catch (error: any) {
             if (typeof window !== 'undefined') {
                 console.error(error);
             }
         }
-    }, [value, key]);
+    }, [state, key]);
 
-    return state;
+    return [state, setState];
 }

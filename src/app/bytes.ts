@@ -5,14 +5,14 @@ export function getRandomBytes(length: number): Uint8Array {
 }
 
 export function bytesToBase64Url(bytes: Uint8Array): string {
-    const text = btoa(String.fromCharCode(...bytes));
-    return text.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
+    const base64 = btoa(String.fromCharCode(...bytes));
+    return base64.replaceAll('+', '-').replaceAll('/', '_').replaceAll('=', '');
 }
 
 export function hexToBytes(hex: string): Uint8Array {
-    return new Uint8Array(hex.match(/.{2}/g)!.map((byte) => parseInt(byte, 16)));
+    return new Uint8Array(hex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16)));
 }
 
 export function bytesToHex(bytes: Uint8Array): string {
-    return bytes.reduce((str, byte) => str + byte.toString(16).padStart(2, '0'), '');
+    return bytes.reduce((hex, byte) => hex + byte.toString(16).padStart(2, '0'), '');
 }
